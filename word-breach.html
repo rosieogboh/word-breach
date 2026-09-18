@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hangman — Cybersecurity Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-a: #FFF3E0;
+    --bg-b: #E7F6FF;
+    --bg-c: #F3EAFF;
+    --panel: #FFFFFF;
+    --panel-2: #F4F7FF;
+    --border: #E2E8F5;
+    --text: #23283B;
+    --muted: #7C86A6;
+    --safe: #22C55E;
+    --safe-bg: #DCFCE7;
+    --safe-text: #15803D;
+    --warn: #F59E0B;
+    --warn-bg: #FEF3C7;
+    --danger: #EF4444;
+    --danger-bg: #FEE2E2;
+    --accent: #7C3AED;
+    --accent-2: #4F46E5;
+    --font: 'Poppins', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: 'IBM Plex Mono', 'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg-a);
+    color: var(--text);
+    font-family: var(--font);
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 14px;
+    background: linear-gradient(135deg, var(--bg-a) 0%, var(--bg-b) 55%, var(--bg-c) 100%);
+  }
+
+  .window {
+    width: 100%;
+    max-width: 900px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 26px 60px rgba(124,58,237,0.16), 0 6px 16px rgba(30,40,80,0.08);
+    position: relative;
+  }
+
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border-bottom: none;
+  }
+
+  .dot { width: 11px; height: 11px; border-radius: 50%; opacity: 0.95; box-shadow: 0 0 0 2px rgba(255,255,255,0.35); }
+  .dot.red { background: var(--danger); }
+  .dot.amber { background: var(--warn); }
+  .dot.green { background: var(--safe); }
+
+  .titlebar-text {
+    margin-left: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: 0.04em;
+  }
+
+  .titlebar-status {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.9);
+    letter-spacing: 0.03em;
+  }
+
+  .body-grid {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 0;
+  }
+
+  @media (max-width: 640px) {
+    .body-grid { grid-template-columns: 1fr; }
+  }
+
+  .panel-left {
+    padding: 20px 18px;
+    background: var(--panel-2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  @media (max-width: 640px) {
+    .panel-left { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+
+  .label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent-2);
+    letter-spacing: 0.05em;
+  }
+
+  .shield-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0 2px;
+  }
+
+  .attempts-line {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .attempts-line span { color: var(--danger); }
+
+  .log {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.6;
+    height: 150px;
+    overflow-y: auto;
+    color: var(--muted);
+  }
+
+  .log div.match { color: var(--safe-text); font-weight: 600; }
+  .log div.nomatch { color: var(--danger); font-weight: 600; }
+  .log div.sys { color: var(--warn); font-weight: 600; }
+
+  .panel-right {
+    padding: 26px 24px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .category-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .category {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .hint-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .hint-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .hint-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #B45309;
+    background: var(--warn-bg);
+    border-radius: 8px;
+    padding: 8px 12px;
+    min-height: 16px;
+  }
+
+  .word-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    padding: 10px 0 4px;
+  }
+
+  .cell {
+    width: 38px;
+    height: 46px;
+    background: var(--panel-2);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 3px 0 var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--accent-2);
+  }
+
+  .cell.space { border: none; background: none; box-shadow: none; width: 18px; }
+
+  .status-line {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    min-height: 22px;
+    letter-spacing: 0.01em;
+  }
+
+  .status-line.win { color: var(--safe-text); }
+  .status-line.lose { color: var(--danger); }
+
+  .keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .krow { display: flex; gap: 6px; }
+
+  .key {
+    width: 34px;
+    height: 40px;
+    background: var(--panel);
+    border: 2px solid var(--border);
+    color: var(--text);
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 0 var(--border);
+    transition: transform 0.06s ease;
+  }
+
+  .key:hover:not(:disabled) { border-color: var(--accent); }
+  .key:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+
+  .key:disabled { cursor: default; opacity: 0.45; }
+  .key.correct { background: var(--safe); border-color: var(--safe); color: #fff; opacity: 1; box-shadow: 0 2px 0 var(--safe-text); }
+  .key.wrong { background: var(--danger); border-color: var(--danger); color: #fff; opacity: 1; box-shadow: 0 2px 0 #B91C1C; }
+
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .btn {
+    display: inline-block;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    border: none;
+    color: #fff;
+    font-family: var(--font);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 10px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(124,58,237,0.35);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(124,58,237,0.4); }
+
+  .name-gate {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,243,224,0.97), rgba(231,246,255,0.97));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .name-gate-box {
+    max-width: 300px;
+    width: 100%;
+    background: var(--panel);
+    border-radius: 18px;
+    padding: 28px 24px;
+    box-shadow: 0 20px 50px rgba(124,58,237,0.2);
+  }
+
+  .name-gate-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin: 8px 0 16px;
+    line-height: 1.5;
+  }
+
+  .name-input {
+    width: 100%;
+    background: var(--panel-2);
+    border: 2px solid var(--border);
+    color: var(--text);
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+
+  .name-input:focus { outline: none; border-color: var(--accent); }
+
+  .player-row {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+  }
+
+  .player-row .pname { color: var(--accent-2); font-weight: 700; }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font);
+    font-weight: 600;
+    font-size: 11px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    margin-left: auto;
+  }
+
+  .link-btn:hover { color: var(--accent-2); }
+
+  .scoreboard {
+    border-top: 1px solid var(--border);
+    background: var(--panel-2);
+    padding: 16px 24px 20px;
+    text-align: center;
+  }
+
+  .scoreboard-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 8px 0 12px;
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 7px;
+    height: 12px;
+    background: var(--accent-2);
+    margin-left: 4px;
+    animation: blink 1s steps(1) infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  @media (max-width: 420px) {
+    .key { width: 28px; font-size: 11px; }
+    .cell { width: 30px; height: 40px; font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="name-gate" id="nameGate">
+    <div class="name-gate-box">
+      <div class="label">PLAYER LOGIN</div>
+      <div class="name-gate-title">enter your name to start the intrusion attempt — you'll submit your score to the office board when you finish</div>
+      <input type="text" id="nameInput" class="name-input" placeholder="e.g. Rosemary" maxlength="24" autocomplete="off">
+      <button class="btn" id="startBtn">Start Game</button>
+    </div>
+  </div>
+
+  <div class="player-row" id="playerRow">
+    <span>playing as <span class="pname" id="playerNameDisplay"></span></span>
+    <button class="link-btn" id="changePlayerBtn">not you? change</button>
+  </div>
+
+  <div class="titlebar">
+    <div class="dot red"></div>
+    <div class="dot amber"></div>
+    <div class="dot green"></div>
+    <div class="titlebar-text">HANGMAN</div>
+    <div class="titlebar-status" id="titleStatus">MONITORING</div>
+  </div>
+
+  <div class="body-grid">
+    <div class="panel-left">
+      <div>
+        <div class="label">INTRUSION STATUS</div>
+        <div class="shield-wrap">
+          <svg id="gallowsSvg" width="140" height="150" viewBox="0 0 140 150">
+            <!-- gallows (always visible) -->
+            <line x1="15" y1="145" x2="95" y2="145" stroke="#4B5170" stroke-width="4" stroke-linecap="round"/>
+            <line x1="30" y1="145" x2="30" y2="10" stroke="#4B5170" stroke-width="4" stroke-linecap="round"/>
+            <line x1="30" y1="10" x2="105" y2="10" stroke="#4B5170" stroke-width="4" stroke-linecap="round"/>
+            <line x1="105" y1="10" x2="105" y2="28" stroke="#4B5170" stroke-width="3"/>
+            <!-- figure parts, revealed one per wrong guess -->
+            <g id="gallowsParts">
+              <circle data-part="0" cx="105" cy="40" r="12" fill="none" stroke="#4B5170" stroke-width="3" opacity="0"/>
+              <line data-part="1" x1="105" y1="52" x2="105" y2="95" stroke="#4B5170" stroke-width="3" opacity="0"/>
+              <line data-part="2" x1="105" y1="65" x2="85" y2="85" stroke="#4B5170" stroke-width="3" opacity="0" stroke-linecap="round"/>
+              <line data-part="3" x1="105" y1="65" x2="125" y2="85" stroke="#4B5170" stroke-width="3" opacity="0" stroke-linecap="round"/>
+              <line data-part="4" x1="105" y1="95" x2="88" y2="125" stroke="#4B5170" stroke-width="3" opacity="0" stroke-linecap="round"/>
+              <line data-part="5" x1="105" y1="95" x2="122" y2="125" stroke="#4B5170" stroke-width="3" opacity="0" stroke-linecap="round"/>
+            </g>
+          </svg>
+        </div>
+        <div class="attempts-line">ATTEMPTS LEFT: <span id="attemptsLeft">6</span> / 6</div>
+        <div class="attempts-line">TIME: <span id="timerDisplay">00:00</span></div>
+      </div>
+
+      <div>
+        <div class="label" style="margin-bottom:6px;">ACTIVITY LOG</div>
+        <div class="log" id="logBox"></div>
+      </div>
+    </div>
+
+    <div class="panel-right">
+      <div class="category-row">
+        <div class="category">CATEGORY: cybersecurity term</div>
+      </div>
+      <div class="hint-text" id="hintText"></div>
+
+      <div class="word-row" id="wordRow"></div>
+
+      <div class="status-line" id="statusLine"><span class="cursor"></span></div>
+
+      <div class="keyboard" id="keyboard"></div>
+
+      <div class="controls">
+        <button class="btn" id="newWordBtn">New Word</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="scoreboard">
+    <div class="label">SUBMIT YOUR SCORE</div>
+    <div class="scoreboard-text" id="scoreboardText">finish a round to submit your score.</div>
+    <a class="btn" id="submitScoreBtn" href="#" target="_blank" rel="noopener" style="display:none;">Submit Score</a>
+  </div>
+</div>
+
+<script>
+  const WORDS = [
+    { word: "FIREWALL", hint: "Blocks unauthorized traffic between networks" },
+    { word: "PHISHING", hint: "Fake messages designed to steal your credentials" },
+    { word: "MALWARE", hint: "Umbrella term for any malicious software" },
+    { word: "RANSOMWARE", hint: "Encrypts your files and demands payment" },
+    { word: "ENCRYPTION", hint: "Scrambles data so only authorized parties can read it" },
+    { word: "TROJAN", hint: "Malware disguised as legitimate software" },
+    { word: "SPYWARE", hint: "Secretly monitors what you do on a device" },
+    { word: "BACKDOOR", hint: "A hidden way to bypass normal authentication" },
+    { word: "KEYLOGGER", hint: "Records every keystroke you type" },
+    { word: "BOTNET", hint: "A network of hijacked devices controlled by one attacker" },
+    { word: "ZERO DAY", hint: "A vulnerability with no patch available yet" },
+    { word: "PATCH", hint: "An update that fixes a security flaw" },
+    { word: "CAPTCHA", hint: "A test designed to prove you're not a robot" },
+    { word: "SANDBOX", hint: "An isolated environment for testing suspicious code" },
+    { word: "HONEYPOT", hint: "A decoy system set up to lure attackers" },
+    { word: "EXPLOIT", hint: "Code that takes advantage of a vulnerability" },
+    { word: "SPOOFING", hint: "Faking an identity to trick a system or person" },
+    { word: "CREDENTIAL", hint: "Username and password used to prove identity" },
+    { word: "ENDPOINT", hint: "Any device connected to a network" },
+    { word: "ANTIVIRUS", hint: "Software that detects and removes malicious programs" },
+    { word: "CIPHER", hint: "An algorithm for encrypting and decrypting data" },
+    { word: "ROOTKIT", hint: "Malware that hides deep in a system to avoid detection" },
+    { word: "PAYLOAD", hint: "The part of an attack that does the actual damage" },
+    { word: "TWO FACTOR", hint: "A second layer of login verification" },
+    { word: "TOKEN", hint: "A piece of data used to verify identity or grant access" },
+    { word: "BREACH", hint: "An incident where data is accessed without authorization" },
+    { word: "COOKIE", hint: "A small file websites use to remember you" },
+    { word: "GATEWAY", hint: "A node that connects two different networks" },
+    { word: "WORM", hint: "Malware that spreads on its own without user action" },
+    { word: "PASSWORD", hint: "A secret string used to prove identity" }
+  ];
+
+  const MAX_ATTEMPTS = 6;
+  let current, guessed, wrongCount, gameOver;
+
+  const wordRow = document.getElementById('wordRow');
+  const keyboard = document.getElementById('keyboard');
+  const logBox = document.getElementById('logBox');
+  const hintText = document.getElementById('hintText');
+  const statusLine = document.getElementById('statusLine');
+  const attemptsLeftEl = document.getElementById('attemptsLeft');
+  const titleStatus = document.getElementById('titleStatus');
+  const gallowsParts = document.getElementById('gallowsParts');
+  const newWordBtn = document.getElementById('newWordBtn');
+  const nameGate = document.getElementById('nameGate');
+  const nameInput = document.getElementById('nameInput');
+  const startBtn = document.getElementById('startBtn');
+  const playerRow = document.getElementById('playerRow');
+  const playerNameDisplay = document.getElementById('playerNameDisplay');
+  const changePlayerBtn = document.getElementById('changePlayerBtn');
+  const timerDisplay = document.getElementById('timerDisplay');
+  const submitScoreBtn = document.getElementById('submitScoreBtn');
+  const scoreboardText = document.getElementById('scoreboardText');
+
+  let playerName = null;
+  let gameStarted = false;
+  let startTime = null;
+  let timerInterval = null;
+
+  const FORM_BASE = 'https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=q4Qi94DoXU-7ZiHEXUgMgcsPb96uoMFAqXTQ1nY279lUQUEzNjdXR1VaRDYxSkFYRVFMMVY2Sk81Vy4u';
+  const FORM_ENTRY = {
+    name: 'rd6c6609b84724665bff36b937c910da1',
+    time: 'r7971178e5c8a4390a30837f5a9964176',
+    wrong: 'r347ce7c077bc468c8f2a5f8fd8fac6f9',
+    result: 'r1115b1c7134e4c6b8f0da7dffd57aa52'
+  };
+
+  function resetGallows() {
+    gallowsParts.querySelectorAll('[data-part]').forEach(el => {
+      el.setAttribute('opacity', '0');
+      el.setAttribute('stroke', '#4B5170');
+    });
+  }
+
+  function updateHangman() {
+    const parts = gallowsParts.querySelectorAll('[data-part]');
+    const color = wrongCount >= MAX_ATTEMPTS ? '#EF4444' : '#F59E0B';
+    parts.forEach(el => {
+      const idx = parseInt(el.dataset.part, 10);
+      if (idx < wrongCount) {
+        el.setAttribute('opacity', '1');
+        el.setAttribute('stroke', idx === wrongCount - 1 ? color : el.getAttribute('stroke'));
+        if (wrongCount >= MAX_ATTEMPTS) el.setAttribute('stroke', '#EF4444');
+      }
+    });
+  }
+
+  const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+
+  function buildKeyboard() {
+    keyboard.innerHTML = '';
+    KEY_ROWS.forEach(row => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'krow';
+      [...row].forEach(letter => {
+        const btn = document.createElement('button');
+        btn.className = 'key';
+        btn.textContent = letter;
+        btn.dataset.letter = letter;
+        btn.addEventListener('click', () => guess(letter));
+        rowEl.appendChild(btn);
+      });
+      keyboard.appendChild(rowEl);
+    });
+  }
+
+  function log(msg, cls) {
+    const line = document.createElement('div');
+    if (cls) line.className = cls;
+    line.textContent = msg;
+    logBox.appendChild(line);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function renderWord() {
+    wordRow.innerHTML = '';
+    [...current.word].forEach(ch => {
+      if (ch === ' ') {
+        const sp = document.createElement('div');
+        sp.className = 'cell space';
+        wordRow.appendChild(sp);
+        return;
+      }
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.textContent = guessed.has(ch) || gameOver ? ch : '';
+      if (gameOver && wrongCount >= MAX_ATTEMPTS && !guessed.has(ch)) {
+        cell.style.color = 'var(--danger)';
+      }
+      wordRow.appendChild(cell);
+    });
+  }
+
+  function formatTime(ms) {
+    const totalSec = Math.max(0, Math.round(ms / 1000));
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, ch => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+  }
+
+  function startTimer() {
+    startTime = Date.now();
+    clearInterval(timerInterval);
+    timerDisplay.textContent = '00:00';
+    timerInterval = setInterval(() => {
+      timerDisplay.textContent = formatTime(Date.now() - startTime);
+    }, 250);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+    return Date.now() - startTime;
+  }
+
+  function showSubmitLink(result, elapsedMs) {
+    const timeSec = Math.round(elapsedMs / 1000);
+    const url = FORM_BASE +
+      '&' + FORM_ENTRY.name + '=' + encodeURIComponent(playerName) +
+      '&' + FORM_ENTRY.time + '=' + timeSec +
+      '&' + FORM_ENTRY.wrong + '=' + wrongCount +
+      '&' + FORM_ENTRY.result + '=' + encodeURIComponent(result);
+    submitScoreBtn.href = url;
+    submitScoreBtn.style.display = 'inline-block';
+    scoreboardText.textContent = result === 'win'
+      ? 'nice work — submit your score to the office board.'
+      : 'log the attempt on the office board, or try again first.';
+  }
+
+  function guess(letter) {
+    if (!gameStarted) return;
+    if (gameOver || guessed.has(letter)) return;
+    guessed.add(letter);
+    const btn = keyboard.querySelector('[data-letter="' + letter + '"]');
+    if (current.word.includes(letter)) {
+      btn.classList.add('correct');
+      btn.disabled = true;
+      log("> input: '" + letter + "' — match", 'match');
+      checkWin();
+    } else {
+      btn.classList.add('wrong');
+      btn.disabled = true;
+      wrongCount++;
+      attemptsLeftEl.textContent = MAX_ATTEMPTS - wrongCount;
+      log("> input: '" + letter + "' — no match [" + (MAX_ATTEMPTS - wrongCount) + " attempts remaining]", 'nomatch');
+      updateHangman();
+      checkLoss();
+    }
+    renderWord();
+  }
+
+  function checkWin() {
+    const allRevealed = [...current.word].every(ch => ch === ' ' || guessed.has(ch));
+    if (allRevealed) {
+      gameOver = true;
+      const elapsed = stopTimer();
+      statusLine.textContent = 'ACCESS DEFENDED — secured in ' + formatTime(elapsed) + '.';
+      statusLine.className = 'status-line win';
+      titleStatus.textContent = 'SECURED';
+      log('> system: intrusion contained.', 'sys');
+      disableKeyboard();
+      showSubmitLink('win', elapsed);
+    }
+  }
+
+  function checkLoss() {
+    if (wrongCount >= MAX_ATTEMPTS) {
+      gameOver = true;
+      const elapsed = stopTimer();
+      statusLine.textContent = 'SYSTEM COMPROMISED — word was: ' + current.word;
+      statusLine.className = 'status-line lose';
+      titleStatus.textContent = 'COMPROMISED';
+      log('> system: perimeter breached.', 'sys');
+      disableKeyboard();
+      renderWord();
+      showSubmitLink('lost', elapsed);
+    }
+  }
+
+  function disableKeyboard() {
+    keyboard.querySelectorAll('.key').forEach(k => k.disabled = true);
+  }
+
+  function newGame() {
+    current = WORDS[Math.floor(Math.random() * WORDS.length)];
+    guessed = new Set();
+    wrongCount = 0;
+    gameOver = false;
+    attemptsLeftEl.textContent = MAX_ATTEMPTS;
+    statusLine.innerHTML = '<span class="cursor"></span>';
+    statusLine.className = 'status-line';
+    titleStatus.textContent = 'MONITORING';
+    hintText.textContent = '// definition: ' + current.hint;
+    logBox.innerHTML = '';
+    log('> system: new target word loaded.', 'sys');
+    resetGallows();
+    buildKeyboard();
+    renderWord();
+    startTimer();
+    submitScoreBtn.style.display = 'none';
+    scoreboardText.textContent = 'finish this round to submit your score.';
+  }
+
+  newWordBtn.addEventListener('click', newGame);
+
+  function startGame() {
+    const val = nameInput.value.trim();
+    if (!val) { nameInput.focus(); return; }
+    playerName = val.slice(0, 24);
+    playerNameDisplay.textContent = playerName;
+    nameGate.style.display = 'none';
+    playerRow.style.display = 'flex';
+    gameStarted = true;
+    newGame();
+  }
+
+  startBtn.addEventListener('click', startGame);
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') startGame();
+  });
+
+  changePlayerBtn.addEventListener('click', () => {
+    gameStarted = false;
+    clearInterval(timerInterval);
+    nameGate.style.display = 'flex';
+    playerRow.style.display = 'none';
+    nameInput.value = '';
+    nameInput.focus();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (!gameStarted) return;
+    const letter = e.key.toUpperCase();
+    if (letter.length === 1 && letter >= 'A' && letter <= 'Z') {
+      guess(letter);
+    }
+  });
+</script>
+
+</body>
+</html>
